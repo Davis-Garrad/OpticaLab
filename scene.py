@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import vecmath
 
 import dguid
+import cfgs
 
 # constants
 
 dl = 1e-3 # This defines the scale that normal approximation calculations will use.
-default_tracingscale = 1e-3 # scale for raytracing step.
 object_resolution = 100 # num evaluation points for object preprocessing and display. Jankier objects need higher resolution, smooth objects don't.
 
 # definitions
@@ -175,8 +175,8 @@ class SceneObject(SceneObjectType):
                 return -super().get_normal(x, y, True)
 
 class Scene:
-    def __init__(self, objects=[], tracingscale=default_tracingscale):
-        '''`tracingscale` defines the base step size.'''
+    '''Just a collection of objects with what are essentially helper functions'''
+    def __init__(self, objects=[]):
         self.objects = objects
 
     def check_intersecting(self, position):
