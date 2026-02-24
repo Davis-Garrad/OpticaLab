@@ -49,6 +49,8 @@ class SceneObjectType:
         '''Defines a 3D object with front face height profile frontface: a function with x and y dependence. Similar for back face. These are both defined with resppect to the same origin, the placement position of the object in the scene. Can be birefringent. Assumed that x and y vary between -1 and 1, and the profiles will be scaled as appropriate for larger objects.'''
         self.index_x = index_of_refraction_x
         self.index_y = index_of_refraction_y
+        if(self.index_x != self.index_y):
+            raise NotImplemented("Birefringence is not implemented in Fresnel equations, nor in the tracer.")
         self.frontface = frontface
         self.backface = backface
 
@@ -130,6 +132,24 @@ class SceneObject(SceneObjectType):
 
         return np.append(neg, pos) # create the new bounding box and return
 
+    def is_inside(self, r):
+        '''Checks if a worldspace position `r` is inside the geometry. A bit of an expensive calulation'''
+        relative_to_obj = r-self.pos
+
+        newvec = vecmath.rotate(np.array([relative_to_obj[0], relative_to_obj[-1]]), -self.rot) # "un"-rotate x, z around y
+        new_prop = vecmath.rotate(np.array([prop_direction[0], prop_direction[-1]]), -self.rot)
+
+        relative_to_obj[0] = newvec[0]
+        relative_to_obj[-1] = newvec[-1]
+        relative_to_obj /= self.scale
+
+        x,y,z=relative_to_obj
+
+        top = self.frontface(x,y)
+        bottom = self.backface(x,y)
+
+        return (z<top and z>bottom)
+
     def get_normal(self, r, prop_direction):
         '''Gets the appropriate normal vector at some real-world position r (can be x,z or x,y,z. Both work.) and propagation direction prop_direction'''
         # undo the translations this object has undergone
@@ -176,14 +196,22 @@ class Scene:
         self.objects = objects
 
     def check_intersecting(self, position):
-        '''Finds all objects which the position lies in the bounding box of. Returns a list of objects, or an empty list if no objects are found'''
+        '''Finds the object that the position lies inside of. This is assuming that there can only be zero or one object at any point (i.e., objects cannot intersect with each other). If there is more than one object, this will return the first for efficiency. It is the onus of the programmer to avoid such problems. Returns None if there is not an intersection.'''
+
+        # get everything which intersects the bounding boxes
         possible_intersects = []
         for i in self.objects:
             bb = i.get_boundingbox(position)
             if(np.all(position[:2] >= bb[:2]) and np.all(position[2:] <= bb[2:])):
                 # inside the box! Add it to the list
                 possible_intersects += [i]
-        return possible_intersects
+        
+        # do the expensive calculations - is the point actually inside the object?
+        for i in possible_intersects:
+            if(i.is_point_inside(position)): # I end up calculating this multiple times, but the readability cost is too high to setup a cache and stuff. I'd rather take the constant time hit.
+                return i
+
+        return None
     
     def show(self, ax=None):
         for i in self.objects:
