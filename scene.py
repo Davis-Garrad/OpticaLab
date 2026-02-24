@@ -8,6 +8,7 @@ import dguid
 # constants
 
 dl = 1e-3 # This defines the scale that normal approximation calculations will use.
+default_tracingscale = 1e-3 # scale for raytracing step.
 
 # definitions
 
@@ -60,7 +61,12 @@ class SceneObjectType:
         if('backface_normal' in kwargs.keys()):
             self.get_backfacing_normal = kwargs['backface_normal']
 
-        self.min_width = np.min(frontface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:]) - backface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:]))
+        
+        fronteval = frontface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:])
+        backeval = backface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:])
+
+        self.min_width = np.min(fronteval - backeval)
+        self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)])# width in -x,-y,x,y from position
 
     def get_normal(self, x, y, back=False):
         '''Gets the front face normal. Points in the forward direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
@@ -125,29 +131,34 @@ class SceneObject(SceneObjectType):
 
         top = self.frontface(x,y)
         bottom = self.backface(x,y)
-        if(z > top):
-            # in front of
-            return super().get_normal(x, y, False)
-        elif(z <= top and z => bottom):
+        if(z > top): # in front of
             if(new_prop[-1] > 0):
-                # moving upwards, use the top normal but flip it to the inside of the shape
-                return -super().get_normal(x,y,False)
-            else: 
-                # moving downward. Use bottom normal but flip it inside
-                return -super().get_normal(x,y,True)
-        else:
-            # behind of
-            return super().get_normal(x,y,True)
+                # in front of, but was likely inside. Flip to the inside
+                return -super().get_normal(x, y, False)
+            else:
+                # in front of, and was outside previously.
+                return super().get_normal(x, y, False)
+        elif(z <= top and z >= bottom): # inside
+            if(new_prop[-1] > 0):
+                # inside, and moving to the top. Front normal, and flip to the inside
+                return super().get_normal(x, y, False)
+            else:
+                # inside, and moving to the bottom. Back normal and flip to inside
+                return -super().get_normal(x, y, True)
+        else: # behind
+            if(new_prop[-1] > 0):
+                # behind, and moving into. back normal
+                return super().get_normal(x, y, True)
+            else:
+                # behind, and was likely inside previously. flip back normal
+                return -super().get_normal(x, y, True)
 
 class Scene:
-    def __init__(self, objects=[], tracingscale=None):
-        '''`tracingscale` defines the base step size (which can later be further scaled down, but it's best to set it here properly). If None, this will be set to 1/100 the smallest optical element.'''
+    def __init__(self, objects=[], tracingscale=default_tracingscale):
+        '''`tracingscale` defines the base step size.'''
         self.objects = objects
 
-        if(tracingscale is None):
-            min_width = 1
-            for i in self.objects:
-                min_width = np.minimum(i.min_width*i.scale, min_width)
+    def get_int
     
     def show(self, ax=None):
         for i in self.objects:
