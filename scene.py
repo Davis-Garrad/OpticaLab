@@ -143,7 +143,6 @@ class SceneObject(SceneObjectType):
         relative_to_obj /= self.scale
 
         # now, x (or x,y) is/are between -1 and 1. We actually also have the z component, so we can decide if we're in front of this thing, inside of it, or behind it.
-        print(relative_to_obj)
         x,y,z = relative_to_obj
         # errors will occur if I've done something wrong with shapes. No x,y,z will be defined.
 
