@@ -62,15 +62,10 @@ class SceneObjectType:
 
         self.min_width = np.min(frontface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:]) - backface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:]))
 
-    def get_normal(self, x, y):
+    def get_normal(self, x, y, back=False):
         '''Gets the front face normal. Points in the forward direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
-        print(f'Approximating normal for component {self.id}')
-        return approximate_normal(self.frontface, x, y)
-
-    def get_backfacing_normal(self, x, y):
-        '''Gets the back face normal. Points in the backward direction.'''
-        print(f'Approximating backfacing normal for component {self.id}')
-        return -approximate_normal(self.backface, x, y)
+        print(f'Approximating{' backfacing' if back else ''} normal for component {self.id}')
+        return approximate_normal(self.backface if back else self.frontface, x, y) * (-1 if back else 1)
 
     def get_outline(self):
         '''Creates a polygon for display purposes (x and z coordinates)'''
@@ -78,6 +73,7 @@ class SceneObjectType:
         front = self.frontface(xs, 0)
         back = self.backface(xs, 0)
 
+        # I can't just call everything xs.....
         X_ARR = np.append(np.append(xs, xs[-1:0:-1]), xs[0])
         Z_ARR = np.append(np.append(front, back[-1:0:-1]), front[0])
 
@@ -106,6 +102,42 @@ class SceneObject(SceneObjectType):
         z = newvec[1] + self.pos[-1] # there might be a y coordinate in index 1
 
         ax.plot(x, z)
+
+    def get_normal(self, r, prop_direction):
+        '''Gets the appropriate normal vector at some real-world position r (can be x,z or x,y,z. Both work.) and propagation direction prop_direction'''
+        # undo the translations this object has undergone
+        relative_to_obj = r-self.pos
+
+        newvec = vecmath.rotate(np.array([relative_to_obj[0], relative_to_obj[-1]]), -self.rot) # "un"-rotate x, z around y
+        new_prop = vecmath.rotate(np.array([prop_direction[0], prop_direction[-1]]), -self.rot)
+
+        relative_to_obj[0] = newvec[0]
+        relative_to_obj[-1] = newvec[-1]
+        relative_to_obj /= self.scale
+
+        # now, x (or x,y) is/are between -1 and 1. We actually also have the z component, so we can decide if we're in front of this thing, inside of it, or behind it.
+        if(len(relative_to_obj) == 3):
+            x,y,z = *relative_to_obj
+        elif(len(relative_to_obj) == 2):
+            x,z = *relative_to_obj
+            y = 0 # now it might matter.
+        # errors will occur if I've done something wrong with shapes. No x,y,z will be defined.
+
+        top = self.frontface(x,y)
+        bottom = self.backface(x,y)
+        if(z > top):
+            # in front of
+            return super().get_normal(x, y, False)
+        elif(z <= top and z => bottom):
+            if(new_prop[-1] > 0):
+                # moving upwards, use the top normal but flip it to the inside of the shape
+                return -super().get_normal(x,y,False)
+            else: 
+                # moving downward. Use bottom normal but flip it inside
+                return -super().get_normal(x,y,True)
+        else:
+            # behind of
+            return super().get_normal(x,y,True)
 
 class Scene:
     def __init__(self, objects=[], tracingscale=None):
