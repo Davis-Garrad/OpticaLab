@@ -9,6 +9,7 @@ import dguid
 
 dl = 1e-3 # This defines the scale that normal approximation calculations will use.
 default_tracingscale = 1e-3 # scale for raytracing step.
+object_resolution = 100 # num evaluation points for object preprocessing and display. Jankier objects need higher resolution, smooth objects don't.
 
 # definitions
 
@@ -43,6 +44,7 @@ def approximate_normal(surface_function, x, y, dL=dl):
     return normal
 
 class SceneObjectType:
+    '''A 3D shape with optical properties, basically. Provides some nice geometric functionality.'''
     def __init__(self, index_of_refraction_x, frontface, index_of_refraction_y=1, backface=lambda x,y: np.zeros_like(x), **kwargs):
         '''Defines a 3D object with front face height profile frontface: a function with x and y dependence. Similar for back face. These are both defined with resppect to the same origin, the placement position of the object in the scene. Can be birefringent. Assumed that x and y vary between -1 and 1, and the profiles will be scaled as appropriate for larger objects.'''
         self.index_x = index_of_refraction_x
@@ -62,11 +64,11 @@ class SceneObjectType:
             self.get_backfacing_normal = kwargs['backface_normal']
 
         
-        fronteval = frontface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:])
-        backeval = backface(np.linspace(-1,1,100)[:,None], np.linspace(-1,1,100)[None,:])
+        fronteval = frontface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
+        backeval = backface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
 
         self.min_width = np.min(fronteval - backeval)
-        self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)])# width in -x,-y,x,y from position
+        self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)]) # width in -x,-y,x,y from position
 
     def get_normal(self, x, y, back=False):
         '''Gets the front face normal. Points in the forward direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
@@ -75,7 +77,7 @@ class SceneObjectType:
 
     def get_outline(self):
         '''Creates a polygon for display purposes (x and z coordinates)'''
-        xs = np.linspace(-1, 1, 100)
+        xs = np.linspace(-1, 1, object_resolution)
         front = self.frontface(xs, 0)
         back = self.backface(xs, 0)
 
@@ -86,6 +88,7 @@ class SceneObjectType:
         return X_ARR, Z_ARR
 
 class SceneObject(SceneObjectType):
+    '''A physical object in 3D space, with some transformations.'''
     def __init__(self, index_x, frontface, position, rotation, scale, *args, **kwargs):
         '''Rotation is around the object's origin, in radians'''
         super().__init__(index_x, frontface, *args, **kwargs)
@@ -108,6 +111,24 @@ class SceneObject(SceneObjectType):
         z = newvec[1] + self.pos[-1] # there might be a y coordinate in index 1
 
         ax.plot(x, z)
+
+    def get_boundingbox(self):
+        '''Gets a (necessarily larger or identical) bounding box that has been transformed as the object has. There's a bit of geometry here.'''
+        neg=self.boundingbox[:2] # -x,-y corner
+        pos=self.boundingbox[2:] # +x,+y corner
+
+        newneg = vecmath.rotate(neg, self.rot) # rotate the corners
+        newpos = vecmath.rotate(pos, self.rot)
+
+        neg = np.maximum(newneg, neg) # the bounding box needs to be largest rectangular area which encloses the object. Thanks.
+        pos = np.maximum(newpos, pos)
+
+        neg *= scale
+        neg += np.array([self.pos[0], self.pos[-1]]) # y translations are not supported.
+        pos *= scale
+        pos += np.array([self.pos[0], self.pos[-1]])
+
+        return np.append(neg, pos) # create the new bounding box and return
 
     def get_normal(self, r, prop_direction):
         '''Gets the appropriate normal vector at some real-world position r (can be x,z or x,y,z. Both work.) and propagation direction prop_direction'''
@@ -158,7 +179,15 @@ class Scene:
         '''`tracingscale` defines the base step size.'''
         self.objects = objects
 
-    def get_int
+    def check_intersecting(self, position):
+        '''Finds all objects which the position lies in the bounding box of. Returns a list of objects, or an empty list if no objects are found'''
+        possible_intersects = []
+        for i in self.objects:
+            bb = i.get_boundingbox(position)
+            if(np.all(position[:2] >= bb[:2]) and np.all(position[2:] <= bb[2:])):
+                # inside the box! Add it to the list
+                possible_intersects += [i]
+        return possible_intersects
     
     def show(self, ax=None):
         for i in self.objects:
