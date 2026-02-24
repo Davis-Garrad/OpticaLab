@@ -8,8 +8,8 @@ import cfgs
 
 # constants
 
-dl = 1e-3 # This defines the scale that normal approximation calculations will use.
-object_resolution = 100 # num evaluation points for object preprocessing and display. Jankier objects need higher resolution, smooth objects don't.
+dl = float(cfgs.sargs['dl']) # This defines the scale that normal approximation calculations will use.
+object_resolution = int(cfgs.sargs['object_resolution']) # num evaluation points for object preprocessing and display. Jankier objects need higher resolution, smooth objects don't.
 
 # definitions
 
@@ -143,11 +143,8 @@ class SceneObject(SceneObjectType):
         relative_to_obj /= self.scale
 
         # now, x (or x,y) is/are between -1 and 1. We actually also have the z component, so we can decide if we're in front of this thing, inside of it, or behind it.
-        if(len(relative_to_obj) == 3):
-            x,y,z = *relative_to_obj
-        elif(len(relative_to_obj) == 2):
-            x,z = *relative_to_obj
-            y = 0 # now it might matter.
+        print(relative_to_obj)
+        x,y,z = relative_to_obj
         # errors will occur if I've done something wrong with shapes. No x,y,z will be defined.
 
         top = self.frontface(x,y)
