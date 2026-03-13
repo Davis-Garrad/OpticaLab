@@ -16,8 +16,7 @@ class State:
 
     def draw_static(self, ax):
         for i in self.rays:
-            xs, ys = i.pos_record.get()
-            ax.scatter(xs, ys, 'x')
+            i.show()
 
     #TODO: Write saving/loading functionality.
     #TODO: Write an animation function for fun

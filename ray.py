@@ -1,6 +1,7 @@
 import numpy as np
 import matploblib.pyplot as plt
 
+import colours
 import dguid
 
 class SmartRecord:
@@ -45,10 +46,14 @@ class Ray:
         self.pos_record.push(self.pos)
         self.pos += self.dir*stepsize
 
-    def show(self, ax=None, color='g'):
+    def show(self, ax=None, color=None):
         '''2D for now.'''
+        if(color is None):
+            color = colours.wavelength_to_rgb(self.col)
         if(ax is None):
             plt.plot(self.pos_record.get()[0], self.pos_record.get()[1], color=color)
+        else:
+            ax.plot(self.pos_record.get()[0], self.pos_record.get()[1], color=color)
 
     def fresnel(self, index_0, index_1, angle_0):
         '''Returns the transmitted intensity, based on Fresnel equations. angle_0 is measured from the normal, and the indices are indices of refraction. We only care about the intensity; this is geometric optics. Reflected intensity is of course 1-T'''
