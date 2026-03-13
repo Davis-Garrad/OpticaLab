@@ -22,8 +22,8 @@ class SmartRecord:
         self.rec = np.append(self.rec, np.empty((self.block_size, *self.rec.shape[1:])))
 
 class Ray:
-    def __init__(self, origin, direction, wavelength=532, polarisation='p', intensity=1):
-        '''Constructs a new Ray object, located at `origin` moving in `direction`. `wavelength` is in nanometers, default 532nm (green laser). `polarisation` should be "s" or "p"'''
+    def __init__(self, origin, direction, wavelength=532, polarisation='p', intensity=1, record=None):
+        '''Constructs a new Ray object, located at `origin` moving in `direction`. `wavelength` is in nanometers, default 532nm (green laser). `polarisation` should be "s" or "p". If `record` is provided, will retain a reference of that record; if not, will create a new record - useful for splitting one ray into two.'''
         self.id = dguid.get_uuid()
         print(f'Constructing ray at {origin} ({wavelength}nm) (id {self.id})')
         self.pos = origin
@@ -35,7 +35,15 @@ class Ray:
         if not(self.pol == 's' or self.pol == 'p'):
             raise TypeError("You must specify either 's' or 'p' polarisation")
 
-        self.pos_record = SmartRecord(shape=origin.shape)
+        if(record is None):
+            self.pos_record = SmartRecord(shape=origin.shape)
+        else: 
+            self.pos_record = record
+
+    def step(self, stepsize):
+        '''Steps the ray forward in it's direction, and records the old position'''
+        self.pos_record.push(self.pos)
+        self.pos += self.dir*stepsize
 
     def show(self, ax=None, color='g'):
         '''2D for now.'''

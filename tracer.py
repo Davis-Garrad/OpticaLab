@@ -4,6 +4,8 @@ import ray
 import scene
 import cfgs
 
+import vecmath.rotate as rotvec
+
 stepsize = float(cfgs.sargs['tracing_step'])
 
 class State:
@@ -11,6 +13,11 @@ class State:
     def __init__(self, scene, rays):
         self.scene = scene
         self.rays = rays
+
+    def draw_static(self, ax):
+        for i in self.rays:
+            xs, ys = i.pos_record.get()
+            ax.scatter(xs, ys, 'x')
 
     #TODO: Write saving/loading functionality.
     #TODO: Write an animation function for fun
@@ -28,6 +35,7 @@ def trace(state):
     #   - Then, find new transmitted and reflected intensities & angles, change the ray direction, and generate a reflection ray if necessary. Increment the ray order.
     # 4. Step the ray forward.
 
+    newrays = []
     for ray in state.rays:
         # step 1
         r = ray.pos
@@ -49,8 +57,18 @@ def trace(state):
 
             transmitted = ray.fresnel(n_r, n_rp, incident_angle)
             transmitted_angle = np.asin(n_r/n_rp * np.sin(incident_angle)) # Snell's law. # TODO: This can break - I should probably do this with wavevectors; after all, that's what I have. 
+            reflected_angle = -incident_angle
             
+            interface_pos = 1/2 * (r + rp) # best guess, not exact by any means. Will prevent the next ray from being "double" diffracted
+            # reflected ray
+            newrays += [ Ray(interface_pos, rotvec(-normal, reflected_angle), wavelength=ray.wavelength, polarisation=ray.polarisation, intensity=ray.intensity * (1-transmitted)) ]
+            # transmitted ray
+            newrays += [ Ray(interface_pos, rotvec(-normal, transmitted_angle), wavelength=ray.wavelength, polarisation=ray.polarisation, intensity=ray.intensity * transmitted) ]
+        else:
+            newrays += [ray]
 
+        for i in newrays:
+            i.step(stepsize)
 
-
+        state.rays = newrays
 
