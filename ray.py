@@ -39,8 +39,9 @@ class Ray:
         self.id = dguid.get_uuid()
         if(debug_level >= DEBUG_ALL):
             print(f'Constructing ray at {origin} ({wavelength}nm) (id {self.id})')
-        self.pos = origin
-        self.dir = direction/np.sqrt(np.sum(np.square(direction)))
+        self._origin = np.copy(origin)
+        self._pos = np.copy(origin) # numpy passes each of these by reference; if we later create a ray and give it this position (as we are wont to do), this will create problems!
+        self._dir = direction/np.sqrt(np.sum(np.square(direction)))
         self.col = wavelength
         self.intensity = intensity
         self.depth = depth # number of reflections/diffraction generations so far. (i.e., transmitted beam is same depth, first diffracted order is +1, etc.)
@@ -48,22 +49,45 @@ class Ray:
         if not(self.pol == 's' or self.pol == 'p'):
             raise TypeError("You must specify either 's' or 'p' polarisation")
 
-        self.pos_record = SmartRecord(shape=origin.shape)
-        self.pos_record.push(self.pos)
+        if(debug_level >= DEBUG_ALL):
+            self.pos_record = SmartRecord(shape=origin.shape)
+            self.pos_record.push(self.origin)
+        else:
+            self.pos_record = None # Only record raymarching steps when debugging. Else, new rays are created upon every interaction - each ray has a straight line path from origin to pos.
 
     def step(self, stepsize):
         '''Steps the ray forward in it's direction, and records the new position'''
-        self.pos += self.dir*stepsize
-        self.pos_record.push(self.pos)
+        self._pos += self.dir*stepsize
+        if(self.pos_record):
+            self.pos_record.push(self.pos)
+
+    @property
+    def pos(self):
+        return self._pos
+    
+    @property
+    def dir(self):
+        return self._dir
+
+    @property
+    def origin(self):
+        return self._origin
 
     def show(self, ax=None, color=None):
         '''2D for now.'''
         if(color is None):
             color = colours.wavelength_to_rgb(self.col)
-        if(ax is None):
-            plt.plot(self.pos_record.get()[:,0], self.pos_record.get()[:,-1], color=color, linewidth=1, alpha=self.intensity)
+
+        positions = None
+        if(self.pos_record is not None):
+            positions = self.pos_record.get()
         else:
-            ax.plot(self.pos_record.get()[:,0], self.pos_record.get()[:,-1], color=color, linewidth=1, alpha=self.intensity, marker='x' if debug_level>=DEBUG_SOME else None)
+            positions = np.array([self.origin, self.pos])
+
+        if(ax is None):
+            plt.plot(positions[:,0], positions[:,-1], color=color, linewidth=1, alpha=self.intensity)
+        else:
+            ax.plot(positions[:,0], positions[:,-1], color=color, linewidth=1, alpha=self.intensity, marker='x' if debug_level>=DEBUG_ALL else None)
 
     def __str__(self):
         return f'Ray ({self.id} gen{self.depth}) - {self.col:.1f}nm, {self.intensity*100.:.2f}%{self.pol} xyz={self.pos} dir={self.dir}'

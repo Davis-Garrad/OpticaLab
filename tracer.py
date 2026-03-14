@@ -49,7 +49,12 @@ class State:
         return ax
 
     def __str__(self):
-        return f'State: {len(self.rays)+len(self.free_rays)+len(self.dead_rays)} rays, {len(self.free_rays)} and {len(self.dead_rays)} of which are free and dead'
+        t = len(self.rays)+len(self.free_rays)+len(self.dead_rays)
+        R = len(self.rays)/t
+        F = len(self.free_rays)/t
+        D = len(self.dead_rays)/t
+        digs = int(np.max(np.ceil(np.log10([len(self.rays), len(self.free_rays), len(self.dead_rays)]))))
+        return f'State: {t} rays, {len(self.rays):0>{digs}}/{len(self.free_rays):0>{digs}}/{len(self.dead_rays):0>{digs}} ({R*100:.0f}/{F*100:.0f}/{D*100:.0f}%) sim/free/dead'
 
     #TODO: Write saving/loading functionality.
     #TODO: Write an animation function for fun
@@ -62,6 +67,9 @@ def fresnel(polarisation, index_0, index_1, cos_theta0, cos_thetat):
         reflected = np.square(np.abs((index_0*cos_thetat - index_1*cos_theta0)/(index_0*cos_thetat + index_1*cos_theta0)))
 
     return reflected
+
+def status_update(s, clr=100):
+    print(f'\r{s:<{clr}}\r', end='')
 
 def trace(state, stepsize=1, resolution=1000):
     '''Steps the rays forward by one macrostep. Big guy.
@@ -87,7 +95,9 @@ def trace(state, stepsize=1, resolution=1000):
 
     #step 0, to avoid long ray marching steps in between optical elements.
     newrays = []
-    for ray in state.rays:
+    status_update('Starting jump optimisation')
+    for ray_i in range(len(state.rays)):
+        ray = state.rays[ray_i]
         closest_pt,propdist = state.scene.get_nextinterface(ray.pos, ray.dir) # searches by max radius
         if(closest_pt is None):
             if(propdist is None): # no more elements to hit! Free Ray!
@@ -99,15 +109,20 @@ def trace(state, stepsize=1, resolution=1000):
                 ray.step(propdist - u_stepsize)
                 newrays += [ray]
             # else, we're already close enough that we might cross an interface with this optimisation. Same-ish as case 2 above.
+        status_update(f'Jump optimisation: {ray_i}/{len(state.rays)}')
     state.rays = newrays
 
+    status_update('Jumping')
     for ray in state.free_rays:
         # macro step! ezpz.
         ray.step(stepsize)
     
-    for run_i in range(int(resolution * stepsize)):
+    status_update('Starting raymarch')
+    Nruns = int(resolution * stepsize)
+    for run_i in range(Nruns):
         newrays = []
-        for ray in state.rays:
+        for ray_i in range(len(state.rays)):
+            ray = state.rays[ray_i]
             # step 1
             r = ray.pos
             rp = r + u_stepsize*ray.dir # expected location
@@ -151,6 +166,7 @@ def trace(state, stepsize=1, resolution=1000):
                         newrays += [ Ray(rp, transmitted_dir, wavelength=ray.col, polarisation=ray.pol, intensity=ray.intensity * transmitted, depth=ray.depth+1) ]
             else:
                 newrays += [ray]
+        status_update(f'Raymarch: {run_i}/{Nruns}')
 
         for i in newrays:
             i.step(u_stepsize)
@@ -158,5 +174,10 @@ def trace(state, stepsize=1, resolution=1000):
         state.rays = newrays
     
     if(debug_level >= DEBUG_MIN):
-        print(f'Finished tracer step ({time.time()-st:.2f}s elapsed).', state)
+        et = time.time()
+        dt = et-st
+        nrays = len(state.rays)
+        nsteps = nrays*resolution
+        str0 = f'Finished tracer step ({dt:.2f}s elapsed' + (f', ~{dt/nsteps*1e6:.1f}μs/sim. step).' if nrays>0 else ').')
+        print(f'{str0:<90}', state)
 
