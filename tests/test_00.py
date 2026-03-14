@@ -1,16 +1,22 @@
 import scene
+import tracer
+import ray
 import matplotlib.pyplot as plt
 import numpy as np
 
-r = Ray(np.array([1,0]), np.array([0,-1]))
+r = ray.Ray(np.array([1.,0.,0.]), np.array([-1.,0.,-1.]))
 
-s = scene.Scene([], [r])
+s = scene.Scene([])
 
-print(a.get_normal(np.array([0.00,0,20]),np.array([0,0,-1])))
-print(a.get_normal(np.array([0.25,0,20]),np.array([0,0,-1])))
-print(a.get_normal(np.array([0.75,0,20]),np.array([0,0,-1])))
-print(a.get_normal(np.array([1.00,0,20]),np.array([0,0,-1])))
+state = tracer.State(s, [r])
+state.show()
+plt.gca().set_aspect('equal')
+plt.show()
 
-s.show()
+for i in range(10):
+    tracer.trace(state)
+
+state.show()
+
 plt.gca().set_aspect('equal')
 plt.show()

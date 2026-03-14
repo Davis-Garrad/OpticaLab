@@ -1,0 +1,30 @@
+import scene
+import tracer
+import ray
+import matplotlib.pyplot as plt
+import numpy as np
+
+import time
+
+rays = [ ray.Ray(np.array([x,0.,1.25]), np.array([0.0,0.,-1.])) for x in np.linspace(-0.3,0.3,21) ]
+lens = scene.SceneObject(1.5, lambda x,y: 3/4 + np.sqrt(1 - x**2/4), np.array([0,0,1]), np.pi, 1)
+
+s = scene.Scene([lens])
+
+state = tracer.State(s, rays)
+state.show()
+plt.gca().set_aspect('equal')
+plt.show()
+
+N=5
+for j in range(N):
+    st=time.time()
+    for i in range(1):
+        tracer.trace(state)
+    dt=time.time()-st
+    print(f'Run {j}/{N-1} took {dt:.3f}s')
+
+state.show()
+
+plt.gca().set_aspect('equal')
+plt.show()

@@ -5,11 +5,13 @@ import vecmath
 
 import dguid
 import cfgs
-
+from defines import *
+ 
 # constants
 
 dl = float(cfgs.sargs['dl']) # This defines the scale that normal approximation calculations will use.
 object_resolution = int(cfgs.sargs['object_resolution']) # num evaluation points for object preprocessing and display. Jankier objects need higher resolution, smooth objects don't.
+debug_level = int(cfgs.sargs['debug_level'])
 
 # definitions
 
@@ -48,7 +50,7 @@ class SceneObjectType:
     def __init__(self, index_of_refraction_x, frontface, index_of_refraction_y=1, backface=lambda x,y: np.zeros_like(x), **kwargs):
         '''Defines a 3D object with front face height profile frontface: a function with x and y dependence. Similar for back face. These are both defined with resppect to the same origin, the placement position of the object in the scene. Can be birefringent. Assumed that x and y vary between -1 and 1, and the profiles will be scaled as appropriate for larger objects.'''
         self.index_x = index_of_refraction_x
-        self.index_y = index_of_refraction_y
+        self.index_y = index_of_refraction_x
         if(self.index_x != self.index_y):
             raise NotImplemented("Birefringence is not implemented in Fresnel equations, nor in the tracer.")
         self.frontface = frontface
@@ -58,7 +60,8 @@ class SceneObjectType:
             self.id = kwargs['id']
         else:
             self.id = dguid.get_uuid()
-        print(f'Creating optical component {self.id}')
+        if(debug_level >= DEBUG_MIN):
+            print(f'Creating optical component {self.id}')
 
         if('frontface_normal' in kwargs.keys()):
             self.get_normal = kwargs['frontface_normal']
@@ -73,9 +76,11 @@ class SceneObjectType:
         self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)]) # width in -x,-y,x,y from position
 
     def get_normal(self, x, y, back=False):
-        '''Gets the front face normal. Points in the forward direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
-        print(f'Approximating{' backfacing' if back else ''} normal for component {self.id}')
-        return approximate_normal(self.backface if back else self.frontface, x, y) * (-1 if back else 1)
+        '''Gets one of the normals. Points in the forward (+z) direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
+        if(debug_level >= DEBUG_MIN):
+            print(f'Approximating{' backfacing' if back else ''} normal for component {self.id} (local pos {x:.3f},{y:.3f})')
+        normal = approximate_normal(self.backface if back else self.frontface, x, y)
+        return normal
 
     def get_outline(self):
         '''Creates a polygon for display purposes (x and z coordinates)'''
@@ -84,8 +89,8 @@ class SceneObjectType:
         back = self.backface(xs, 0)
 
         # I can't just call everything xs.....
-        X_ARR = np.append(np.append(xs, xs[-1:0:-1]), xs[0])
-        Z_ARR = np.append(np.append(front, back[-1:0:-1]), front[0])
+        X_ARR = np.append(np.append(xs, xs[-1::-1]), xs[0])
+        Z_ARR = np.append(np.append(front, back[-1::-1]), front[0])
 
         return X_ARR, Z_ARR
 
@@ -116,42 +121,54 @@ class SceneObject(SceneObjectType):
 
     def get_boundingbox(self):
         '''Gets a (necessarily larger or identical) bounding box that has been transformed as the object has. There's a bit of geometry here.'''
-        neg=self.boundingbox[:2] # -x,-y corner
-        pos=self.boundingbox[2:] # +x,+y corner
+        bl=self.boundingbox[:2] # -x,-y corner
+        br=np.array([self.boundingbox[2],self.boundingbox[1]]) # +x,-y corner
+        tr=self.boundingbox[2:] # +x,+y corner
+        tl=np.array([self.boundingbox[0],self.boundingbox[3]]) # -x,+y corner
+        
 
-        newneg = vecmath.rotate(neg, self.rot) # rotate the corners
-        newpos = vecmath.rotate(pos, self.rot)
+        newbl = vecmath.rotate(bl, self.rot) # rotate the corners
+        newbr = vecmath.rotate(br, self.rot)
+        newtl = vecmath.rotate(tl, self.rot)
+        newtr = vecmath.rotate(tr, self.rot)
+        
+        composite = np.concatenate((newbl, newbr, newtl, newtr))
 
-        neg = np.maximum(newneg, neg) # the bounding box needs to be largest rectangular area which encloses the object. Thanks.
-        pos = np.maximum(newpos, pos)
+        xs = composite[0::2]
+        zs = composite[1::2]
 
-        neg *= scale
+        neg = np.array([np.min(xs), np.min(zs)])
+        pos = np.array([np.max(xs), np.max(zs)])
+
+        neg *= self.scale
         neg += np.array([self.pos[0], self.pos[-1]]) # y translations are not supported.
-        pos *= scale
+        pos *= self.scale
         pos += np.array([self.pos[0], self.pos[-1]])
 
         return np.append(neg, pos) # create the new bounding box and return
+
+    def get_boundingcircle(self):
+        '''Returns (centreposition, max_radius)'''
+        radius_neg = np.sqrt(np.sum(np.square(self.boundingbox[:2])))
+        radius_pos = np.sqrt(np.sum(np.square(self.boundingbox[:2])))
+
+        return (self.pos, np.maximum(radius_neg, radius_pos))
 
     def is_inside(self, r):
         '''Checks if a worldspace position `r` is inside the geometry. A bit of an expensive calulation'''
         relative_to_obj = r-self.pos
 
-        newvec = vecmath.rotate(np.array([relative_to_obj[0], relative_to_obj[-1]]), -self.rot) # "un"-rotate x, z around y
-        new_prop = vecmath.rotate(np.array([prop_direction[0], prop_direction[-1]]), -self.rot)
-
-        relative_to_obj[0] = newvec[0]
-        relative_to_obj[-1] = newvec[-1]
+        relative_to_obj = vecmath.rotate(relative_to_obj, -self.rot) # "un"-rotate x, z around y
         relative_to_obj /= self.scale
 
-        x,y,z=relative_to_obj
+        top = self.frontface(*relative_to_obj[:2])
+        bottom = self.backface(*relative_to_obj[:2])
 
-        top = self.frontface(x,y)
-        bottom = self.backface(x,y)
-
-        return (z<top and z>bottom)
+        isinside = (bottom <= relative_to_obj[-1] <= top) and (-1 <= relative_to_obj[0] <= 1)
+        return isinside
 
     def get_normal(self, r, prop_direction):
-        '''Gets the appropriate normal vector at some real-world position r (can be x,z or x,y,z. Both work.) and propagation direction prop_direction'''
+        '''Gets the appropriate normal vector at some real-world position r (x,y,z) and propagation direction prop_direction'''
         # undo the translations this object has undergone
         relative_to_obj = r-self.pos
 
@@ -168,27 +185,30 @@ class SceneObject(SceneObjectType):
 
         top = self.frontface(x,y)
         bottom = self.backface(x,y)
+        normal=None
         if(z > top): # in front of
             if(new_prop[-1] > 0):
                 # in front of, but was likely inside. Flip to the inside
-                return -super().get_normal(x, y, False)
+                normal = -super().get_normal(x, y, False)
             else:
                 # in front of, and was outside previously.
-                return super().get_normal(x, y, False)
-        elif(z <= top and z >= bottom): # inside
+                normal = super().get_normal(x, y, False)
+        elif(top >= z >= bottom): # inside
             if(new_prop[-1] > 0):
                 # inside, and moving to the top. Front normal, and flip to the inside
-                return super().get_normal(x, y, False)
+                normal = -super().get_normal(x, y, False)
             else:
-                # inside, and moving to the bottom. Back normal and flip to inside
-                return -super().get_normal(x, y, True)
+                # inside, and moving to the bottom. Back normal
+                normal = super().get_normal(x, y, True)
         else: # behind
             if(new_prop[-1] > 0):
-                # behind, and moving into. back normal
-                return super().get_normal(x, y, True)
+                # behind, and moving into. back normal & flip to outside
+                normal = -super().get_normal(x, y, True)
             else:
-                # behind, and was likely inside previously. flip back normal
-                return -super().get_normal(x, y, True)
+                # behind, and was likely inside previously. take back
+                normal = super().get_normal(x, y, True)
+
+        return vecmath.rotate(normal, self.rot)
 
 class Scene:
     '''Just a collection of objects with what are essentially helper functions'''
@@ -201,17 +221,54 @@ class Scene:
         # get everything which intersects the bounding boxes
         possible_intersects = []
         for i in self.objects:
-            bb = i.get_boundingbox(position)
-            if(np.all(position[:2] >= bb[:2]) and np.all(position[2:] <= bb[2:])):
+            bb = i.get_boundingbox()
+            if(bb[2] >= position[0] >= bb[0] and
+               bb[3] >= position[-1] >= bb[1]):
                 # inside the box! Add it to the list
                 possible_intersects += [i]
         
         # do the expensive calculations - is the point actually inside the object?
         for i in possible_intersects:
-            if(i.is_point_inside(position)): # I end up calculating this multiple times, but the readability cost is too high to setup a cache and stuff. I'd rather take the constant time hit.
+            if(i.is_inside(position)): # I end up calculating this multiple times, but the readability cost is too high to setup a cache and stuff. I'd rather take the constant time hit.
                 return i
 
         return None
+
+    def get_nextinterface(self, position, direction):
+        '''Returns the position of and squared distance to the next object that a given ray will intersect with, given a direction and origin. Returns None,None if there are no objects, or None,0 if we're already inside any of the objects' bounding spheres.'''
+        perp    = np.array([direction[2], direction[1], -direction[0]]) # sign won't matter, we care about relative differences later...
+        in_path = []
+        #TODO: vectorize this?
+        for i in range(len(self.objects)):
+            centre,rad = self.objects[i].get_boundingcircle()
+            c = centre-position
+            # need that the two sides of the bounding circle lie on different sides of the propagation (direction) vector
+            # some basic vector algebra+geometry shows that this is equivalent to centre(dot)perp_to_propagation \elem (-r,r)
+            perp_proj = np.dot(perp, c)
+            if(np.abs(perp_proj) <= rad): # in the path
+                in_path += [(i,c,rad)] # pass on to next step
+
+        if(in_path == []):
+            return None,None
+        min_dist = -1
+        min_dist_i = None
+        for (i,c_rel,rad) in in_path: # so many `in`'s
+            dist_sqrd = np.sum(np.square(c_rel))
+            rad_sqrd = np.square(rad)
+            if(dist_sqrd <= rad_sqrd): # there's a possibility we're in this object, in front of it, or have yet to hit it! Quit, and let the raytracer do its job!
+                return None,0
+            prop_proj = np.dot(direction, c_rel) # to figure out if it's in front or behind us
+            if(prop_proj > 0): # in front
+                if(dist_sqrd-rad_sqrd < min_dist or min_dist==-1): # the front of the bounding sphere is close! Record it
+                    min_dist = dist_sqrd-rad_sqrd
+                    min_dist_i = i
+        if(min_dist is -1): # didn't find anything in front of us!
+            return None,None
+
+        closest_point = c_rel - c_rel/np.sqrt(np.sum(np.square(c_rel))) * rad + position
+
+        return closest_point,min_dist
+
     
     def show(self, ax=None):
         for i in self.objects:
