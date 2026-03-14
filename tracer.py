@@ -83,15 +83,15 @@ def trace(state, stepsize=1, resolution=1000):
     #step 0, to avoid long ray marching steps in between optical elements.
     newrays = []
     for ray in state.rays:
-        closest_pt,sqrdist = state.scene.get_nextinterface(ray.pos, ray.dir) # searches by max radius
+        closest_pt,propdist = state.scene.get_nextinterface(ray.pos, ray.dir) # searches by max radius
         if(closest_pt is None):
-            if(sqrdist is None): # no more elements to hit! Free Ray!
+            if(propdist is None): # no more elements to hit! Free Ray!
                 state.free_rays += [ray]
-            elif(sqrdist == 0): # we're already too close to optimise anything.
+            elif(propdist == 0): # we're already too close to optimise anything.
                 newrays += [ray]
         else:
-            if(sqrdist > np.square(u_stepsize)):
-                ray.pos += ray.dir * (np.sqrt(sqrdist) - u_stepsize)
+            if(propdist > np.square(u_stepsize)):
+                ray.step(propdist - u_stepsize)
                 newrays += [ray]
             # else, we're already close enough that we might cross an interface with this optimisation. Same-ish as case 2 above.
     state.rays = newrays

@@ -21,3 +21,6 @@ if(input('test_04 (Spherical lens, timing)? [y/N] ') == 'y'):
 if(input('test_05 (Mirror)? [y/N] ') == 'y'):
     sys.argv = ['virtual','tests/cfg/test_cfg_flags_00.txt']
     import tests.test_05
+if(input('test_06 (Parabaloid mirror)? [y/N] ') == 'y'):
+    sys.argv = ['virtual','tests/cfg/test_cfg_flags_00.txt']
+    import tests.test_06

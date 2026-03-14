@@ -119,10 +119,11 @@ class SceneObject(SceneObjectType):
 
         ax.plot(x, z)
 
-        # bounding circle
-        theta = np.linspace(0, 2*np.pi, 360)
-        c,r=self.get_boundingcircle()
-        ax.plot(c[0]+np.cos(theta)*r, c[-1]+np.sin(theta)*r, linestyle='--', color='k')
+        if(debug_level >= DEBUG_MIN):
+            # bounding circle
+            theta = np.linspace(0, 2*np.pi, 360)
+            c,r=self.get_boundingcircle()
+            ax.plot(c[0]+np.cos(theta)*r, c[-1]+np.sin(theta)*r, linestyle='--', color='k')
 
     def get_boundingbox(self):
         '''Gets a (necessarily larger or identical) bounding box that has been transformed as the object has. There's a bit of geometry here.'''
@@ -247,7 +248,7 @@ class Scene:
         return None
 
     def get_nextinterface(self, position, direction):
-        '''Returns the position of and squared distance to the next object that a given ray will intersect with, given a direction and origin. Returns None,None if there are no objects, or None,0 if we're already inside any of the objects' bounding spheres.'''
+        '''Returns the position of and propagation distance to the next object that a given ray will intersect with, given a direction and origin. Returns None,None if there are no objects, or None,0 if we're already inside any of the objects' bounding spheres.'''
         perp    = np.array([direction[2], direction[1], -direction[0]]) # sign won't matter, we care about relative differences later...
         in_path = []
         #TODO: vectorize this?
@@ -276,10 +277,15 @@ class Scene:
                     min_dist_i = i
         if(min_dist is -1): # didn't find anything in front of us!
             return None,None
+        
+        i,c_rel,rad = in_path[min_dist_i]
+        prop_proj = np.dot(direction, c_rel)
+        perp_proj = np.dot(perp, c_rel)
 
-        closest_point = c_rel - c_rel/np.sqrt(np.sum(np.square(c_rel))) * rad + position
+        prop_distance = prop_proj - np.sqrt(np.square(rad) - np.square(perp_proj))
+        closest_point = prop_distance*direction + position
 
-        return closest_point,min_dist
+        return closest_point,prop_distance
 
     
     def show(self, ax=None):

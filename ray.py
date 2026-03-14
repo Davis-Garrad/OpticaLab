@@ -63,7 +63,7 @@ class Ray:
         if(ax is None):
             plt.plot(self.pos_record.get()[:,0], self.pos_record.get()[:,-1], color=color, linewidth=1, alpha=self.intensity)
         else:
-            ax.plot(self.pos_record.get()[:,0], self.pos_record.get()[:,-1], color=color, linewidth=1, alpha=self.intensity)
+            ax.plot(self.pos_record.get()[:,0], self.pos_record.get()[:,-1], color=color, linewidth=1, alpha=self.intensity, marker='x' if debug_level>=DEBUG_SOME else None)
 
     def __str__(self):
         return f'Ray ({self.id} gen{self.depth}) - {self.col:.1f}nm, {self.intensity*100.:.2f}%{self.pol} xyz={self.pos} dir={self.dir}'
