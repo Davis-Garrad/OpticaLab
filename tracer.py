@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import time
+
 from ray import Ray
 import cfgs
 from defines import *
@@ -47,7 +49,7 @@ class State:
         return ax
 
     def __str__(self):
-        return f'State; {len(self.rays)+len(self.free_rays)+len(self.dead_rays)} rays, {len(self.free_rays)} and {len(self.dead_rays)} of which are free and dead'
+        return f'State: {len(self.rays)+len(self.free_rays)+len(self.dead_rays)} rays, {len(self.free_rays)} and {len(self.dead_rays)} of which are free and dead'
 
     #TODO: Write saving/loading functionality.
     #TODO: Write an animation function for fun
@@ -77,6 +79,9 @@ def trace(state, stepsize=1, resolution=1000):
     #   - Then, find new transmitted and reflected intensities & angles, change the ray direction, and generate a reflection ray if necessary. Increment the ray order.
     # 4. Step the ray forward.
     #print(f'Tracer step ({stepsize})')
+
+    if(debug_level >= DEBUG_MIN):
+        st = time.time()
 
     u_stepsize = 1./resolution # microstepsize
 
@@ -122,14 +127,6 @@ def trace(state, stepsize=1, resolution=1000):
                 nratio = n_r/n_rp
 
                 normal = int_r.get_normal(r, ray.dir) if int_r else int_rp.get_normal(r, ray.dir) #TODO: This is a bit weird, isn't it? Check on a better day.
-                #incident_angle = np.abs(np.atan2(normal[-1],normal[0]) - np.atan2((-ray.dir)[-1], (-ray.dir)[0]))
-
-                #if not(-np.pi/2 < incident_angle < np.pi/2):
-                #    print(incident_angle * 180/np.pi)
-                #    incident_angle = np.fmod(incident_angle, np.pi/2)
-
-                #transmitted_angle = np.asin(n_r/n_rp * np.sin(incident_angle)) # Snell's law. # TODO: This can break - I should probably do this with wavevectors; after all, that's what I have. 
-                #reflected_angle = -incident_angle
 
                 cos_incident = -np.dot(normal, ray.dir)
                 reflected_dir = ray.dir + 2*cos_incident * normal
@@ -161,5 +158,5 @@ def trace(state, stepsize=1, resolution=1000):
         state.rays = newrays
     
     if(debug_level >= DEBUG_MIN):
-        print('Finished tracer step', state)
+        print(f'Finished tracer step ({time.time()-st:.2f}s elapsed).', state)
 
