@@ -18,3 +18,6 @@ if(input('test_03 (Spherical lens, thick)? [y/N]') == 'y'):
 if(input('test_04 (Spherical lens, timing)? [y/N]') == 'y'):
     sys.argv = ['virtual','tests/cfg/test_cfg_flags_04.txt']
     import tests.test_04
+if(input('test_05 (Mirror)? [y/N]') == 'y'):
+    sys.argv = ['virtual','tests/cfg/test_cfg_flags_00.txt']
+    import tests.test_05

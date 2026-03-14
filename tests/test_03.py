@@ -15,8 +15,7 @@ state.show()
 plt.gca().set_aspect('equal')
 plt.show()
 
-for i in range(3):
-    tracer.trace(state)
+tracer.trace(state, stepsize=3)
 
 state.show()
 

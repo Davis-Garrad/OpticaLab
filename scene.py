@@ -77,7 +77,7 @@ class SceneObjectType:
 
     def get_normal(self, x, y, back=False):
         '''Gets one of the normals. Points in the forward (+z) direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
-        if(debug_level >= DEBUG_MIN):
+        if(debug_level >= DEBUG_SOME):
             print(f'Approximating{' backfacing' if back else ''} normal for component {self.id} (local pos {x:.3f},{y:.3f})')
         normal = approximate_normal(self.backface if back else self.frontface, x, y)
         return normal
@@ -119,13 +119,17 @@ class SceneObject(SceneObjectType):
 
         ax.plot(x, z)
 
+        # bounding circle
+        theta = np.linspace(0, 2*np.pi, 360)
+        c,r=self.get_boundingcircle()
+        ax.plot(c[0]+np.cos(theta)*r, c[-1]+np.sin(theta)*r, linestyle='--', color='k')
+
     def get_boundingbox(self):
         '''Gets a (necessarily larger or identical) bounding box that has been transformed as the object has. There's a bit of geometry here.'''
         bl=self.boundingbox[:2] # -x,-y corner
         br=np.array([self.boundingbox[2],self.boundingbox[1]]) # +x,-y corner
         tr=self.boundingbox[2:] # +x,+y corner
         tl=np.array([self.boundingbox[0],self.boundingbox[3]]) # -x,+y corner
-        
 
         newbl = vecmath.rotate(bl, self.rot) # rotate the corners
         newbr = vecmath.rotate(br, self.rot)
@@ -149,10 +153,18 @@ class SceneObject(SceneObjectType):
 
     def get_boundingcircle(self):
         '''Returns (centreposition, max_radius)'''
-        radius_neg = np.sqrt(np.sum(np.square(self.boundingbox[:2])))
-        radius_pos = np.sqrt(np.sum(np.square(self.boundingbox[:2])))
 
-        return (self.pos, np.maximum(radius_neg, radius_pos))
+        bb = self.get_boundingbox()
+        avg_x = np.average(bb[0::2])
+        avg_z = np.average(bb[1::2])
+        centre = np.array([avg_x, avg_z])
+        radius_neg = np.sqrt(np.sum(np.square(centre-bb[:2])))
+        radius_pos = np.sqrt(np.sum(np.square(centre-bb[2:])))
+
+        true_centre = np.array([avg_x, 0, avg_z])
+
+
+        return (true_centre, np.maximum(radius_neg, radius_pos))
 
     def is_inside(self, r):
         '''Checks if a worldspace position `r` is inside the geometry. A bit of an expensive calulation'''

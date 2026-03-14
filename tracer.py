@@ -32,8 +32,22 @@ class State:
         for i in self.rays:
             i.show(ax=ax)
         self.scene.show(ax=ax)
+        ax.set_aspect('equal')
+        left,right = ax.get_xlim()
+        bottom,top = ax.get_ylim()
+        height = top-bottom
+        width = right-left
+        vcentre = (top+bottom)/2.
+        hcentre = (right+left)/2.
+        
+        dim = np.maximum(height, width)
+        ax.set_xlim((hcentre-dim/2, hcentre+dim/2))
+        ax.set_ylim((vcentre-dim/2, vcentre+dim/2))
 
         return ax
+
+    def __str__(self):
+        return f'State; {len(self.rays)+len(self.free_rays)+len(self.dead_rays)} rays, {len(self.free_rays)} and {len(self.dead_rays)} of which are free and dead'
 
     #TODO: Write saving/loading functionality.
     #TODO: Write an animation function for fun
@@ -47,10 +61,10 @@ def fresnel(polarisation, index_0, index_1, cos_theta0, cos_thetat):
 
     return reflected
 
-def trace(state, resolution=1000, macrostepsize=1):
+def trace(state, stepsize=1, resolution=1000):
     '''Steps the rays forward by one macrostep. Big guy.
-    `resolution` defines the smallest stepsize which should be taken as rays approach objects as macrostepsize/resolution.
-    `macrostepsize` defines the distance that the rays should march after determining they're close to objects, before performing another optimising step. Broadly, this value should reflect the average width of optical elements. This is the minimum distance that rays will march with one call of this function. There is, in general, no maximum, as long as optical elements exist in front of the rays.'''
+    `resolution` defines the smallest stepsize which should be taken as rays approach objects as 1/resolution.
+    `stepsize` defines the (minimum) distance that the (free and finely-stepped) rays should march. There is, in general, no maximum for rays which still have elements in front of them.'''
 
     # Algorithm is as follows:
     # 0 (PRE-COMPUTING). For each ray; Find the next obstacle in a straight line (closest edge distance, O(n*m) object calculations for n objects, m resolution), and move the ray nearby
@@ -64,7 +78,7 @@ def trace(state, resolution=1000, macrostepsize=1):
     # 4. Step the ray forward.
     #print(f'Tracer step ({stepsize})')
 
-    stepsize = macrostepsize/resolution
+    u_stepsize = 1./resolution # microstepsize
 
     #step 0, to avoid long ray marching steps in between optical elements.
     newrays = []
@@ -76,22 +90,22 @@ def trace(state, resolution=1000, macrostepsize=1):
             elif(sqrdist == 0): # we're already too close to optimise anything.
                 newrays += [ray]
         else:
-            if(sqrdist > np.square(stepsize)):
-                ray.pos += ray.dir * (np.sqrt(sqrdist) - stepsize)
+            if(sqrdist > np.square(u_stepsize)):
+                ray.pos += ray.dir * (np.sqrt(sqrdist) - u_stepsize)
                 newrays += [ray]
             # else, we're already close enough that we might cross an interface with this optimisation. Same-ish as case 2 above.
     state.rays = newrays
 
     for ray in state.free_rays:
         # macro step! ezpz.
-        ray.step(macrostepsize)
+        ray.step(stepsize)
     
-    for run_i in range(resolution):
+    for run_i in range(int(resolution * stepsize)):
         newrays = []
         for ray in state.rays:
             # step 1
             r = ray.pos
-            rp = r + stepsize*ray.dir # expected location
+            rp = r + u_stepsize*ray.dir # expected location
 
             # step 2
             int_r = state.scene.check_intersecting(r)
@@ -127,15 +141,11 @@ def trace(state, resolution=1000, macrostepsize=1):
                     transmitted = 1-fresnel(ray.pol, n_r, n_rp, cos_incident, cos_refracted)
                 else:
                     transmitted=0
-
+                if(np.isnan(transmitted)): # This is a limiting case, when nratio goes to inf or zero. This leads to other calculations breaking, but I'm frankly too lazy to change the whole form of said calculations....
+                    transmitted = 0
                 state.dead_rays += [ray] # signal that we should NOT trace this!
 
-                if(ray.depth == max_depth): # in this case, only one should survive!
-                    if(transmitted > 0.5): # transmitted dominant
-                        newrays += [ Ray(r, reflected_dir, wavelength=ray.col, polarisation=ray.pol, intensity=ray.intensity * (1-transmitted), depth=ray.depth) ]
-                    else:
-                        newrays += [ Ray(r, reflected_dir, wavelength=ray.col, polarisation=ray.pol, intensity=ray.intensity * (1-transmitted), depth=ray.depth) ]
-                else:
+                if(ray.depth+1 <= max_depth or max_depth==-1):
                     # reflected ray
                     if(transmitted < 1):
                         newrays += [ Ray(r, reflected_dir, wavelength=ray.col, polarisation=ray.pol, intensity=ray.intensity * (1-transmitted), depth=ray.depth+1) ]
@@ -146,7 +156,10 @@ def trace(state, resolution=1000, macrostepsize=1):
                 newrays += [ray]
 
         for i in newrays:
-            i.step(stepsize)
+            i.step(u_stepsize)
 
         state.rays = newrays
+    
+    if(debug_level >= DEBUG_MIN):
+        print('Finished tracer step', state)
 

@@ -37,7 +37,7 @@ class Ray:
     def __init__(self, origin, direction, wavelength=532, polarisation='p', intensity=1, depth=0):
         '''Constructs a new Ray object, located at `origin` moving in `direction`. `wavelength` is in nanometers, default 532nm (green laser). `polarisation` should be "s" or "p". If `record` is provided, will retain a reference of that record; if not, will create a new record - useful for splitting one ray into two.'''
         self.id = dguid.get_uuid()
-        if(debug_level >= DEBUG_MIN):
+        if(debug_level >= DEBUG_ALL):
             print(f'Constructing ray at {origin} ({wavelength}nm) (id {self.id})')
         self.pos = origin
         self.dir = direction/np.sqrt(np.sum(np.square(direction)))
