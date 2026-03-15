@@ -265,6 +265,7 @@ class Scene:
             return None,None
         min_dist = -1
         min_dist_i = None
+        j = 0
         for (i,c_rel,rad) in in_path: # so many `in`'s
             dist_sqrd = np.sum(np.square(c_rel))
             rad_sqrd = np.square(rad)
@@ -274,7 +275,8 @@ class Scene:
             if(prop_proj > 0): # in front
                 if(dist_sqrd-rad_sqrd < min_dist or min_dist==-1): # the front of the bounding sphere is close! Record it
                     min_dist = dist_sqrd-rad_sqrd
-                    min_dist_i = i
+                    min_dist_i = j
+            j += 1
         if(min_dist is -1): # didn't find anything in front of us!
             return None,None
         

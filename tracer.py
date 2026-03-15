@@ -73,7 +73,7 @@ def fresnel(polarisation, index_0, index_1, cos_theta0, cos_thetat):
 
     return reflected
 
-def status_update(s, clr=100):
+def status_update(s, clr=50):
     print(f'\r{s:<{clr}}\r', end='')
 
 def trace(state, stepsize=1, resolution=1000):

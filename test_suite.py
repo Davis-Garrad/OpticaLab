@@ -30,3 +30,6 @@ if(input('test_07 (Parabaloid lens, tilt)? [y/N] ') == 'y'):
 if(input('test_08 (Parabaloid lens, focus width)? [y/N] ') == 'y'):
     sys.argv = ['virtual','tests/cfg/test_cfg_flags_04.txt']
     import tests.test_08
+if(input('test_09 (Microscope)? [y/N] ') == 'y'):
+    sys.argv = ['virtual','tests/cfg/test_cfg_flags_09.txt']
+    import tests.test_09

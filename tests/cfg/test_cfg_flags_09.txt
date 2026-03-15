@@ -1,0 +1,5 @@
+dl 1e-3
+object_resolution 100
+tracing_step 1e-3
+debug_level 1
+max_depth 4
