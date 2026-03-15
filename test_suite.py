@@ -27,3 +27,6 @@ if(input('test_06 (Parabaloid mirror)? [y/N] ') == 'y'):
 if(input('test_07 (Parabaloid lens, tilt)? [y/N] ') == 'y'):
     sys.argv = ['virtual','tests/cfg/test_cfg_flags_04.txt']
     import tests.test_07
+if(input('test_08 (Parabaloid lens, focus width)? [y/N] ') == 'y'):
+    sys.argv = ['virtual','tests/cfg/test_cfg_flags_04.txt']
+    import tests.test_08
