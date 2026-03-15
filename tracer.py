@@ -18,6 +18,11 @@ class State:
     def __init__(self, scene, rays):
         self.scene = scene
         self.rays = rays
+        total_intensity = 0
+        for i in rays:
+            total_intensity += i.intensity
+        for i in rays:
+            i.intensity /= total_intensity
         self.free_rays = [] # rays which will have no optical elements left in their path, and will only be traced in macro steps.
         self.dead_rays = [] # rays which will not be traced, but existed to create the final set of rays (self.rays)
 
@@ -141,7 +146,7 @@ def trace(state, stepsize=1, resolution=1000):
 
                 nratio = n_r/n_rp
 
-                normal = int_r.get_normal(r, ray.dir) if int_r else int_rp.get_normal(r, ray.dir) #TODO: This is a bit weird, isn't it? Check on a better day.
+                normal = int_r.get_normal(r, ray.dir) if int_r else int_rp.get_normal(r, ray.dir)
 
                 cos_incident = -np.dot(normal, ray.dir)
                 reflected_dir = ray.dir + 2*cos_incident * normal

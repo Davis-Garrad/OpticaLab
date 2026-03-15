@@ -85,9 +85,11 @@ class Ray:
             positions = np.array([self.origin, self.pos])
 
         if(ax is None):
-            plt.plot(positions[:,0], positions[:,-1], color=color, linewidth=1, alpha=self.intensity)
+            plt.plot(positions[:,0], positions[:,-1], color=color, linewidth=4, alpha=np.sqrt(self.intensity), zorder=5)
+            plt.plot(positions[:,0], positions[:,-1], color='k', linewidth=0.4, zorder=1)
         else:
-            ax.plot(positions[:,0], positions[:,-1], color=color, linewidth=1, alpha=self.intensity, marker='x' if debug_level>=DEBUG_ALL else None)
+            ax.plot(positions[:,0], positions[:,-1], color=color, linewidth=4, alpha=np.sqrt(self.intensity), zorder=5)
+            ax.plot(positions[:,0], positions[:,-1], color='k', linewidth=0.4, marker='x' if debug_level>=DEBUG_ALL else None, zorder=1)
 
     def __str__(self):
         return f'Ray ({self.id} gen{self.depth}) - {self.col:.1f}nm, {self.intensity*100.:.2f}%{self.pol} xyz={self.pos} dir={self.dir}'
