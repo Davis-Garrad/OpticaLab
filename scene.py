@@ -47,14 +47,25 @@ def approximate_normal(surface_function, x, y, dL=dl):
 
 class SceneObjectType:
     '''A 3D shape with optical properties, basically. Provides some nice geometric functionality.'''
-    def __init__(self, index_of_refraction_x, frontface, index_of_refraction_y=1, backface=lambda x,y: np.zeros_like(x), **kwargs):
+    def __init__(self, index_of_refraction_x, frontface, index_of_refraction_y=1, backface=None, **kwargs):
         '''Defines a 3D object with front face height profile frontface: a function with x and y dependence. Similar for back face. These are both defined with resppect to the same origin, the placement position of the object in the scene. Can be birefringent. Assumed that x and y vary between -1 and 1, and the profiles will be scaled as appropriate for larger objects.'''
         self.index_x = index_of_refraction_x
         self.index_y = index_of_refraction_x
         if(self.index_x != self.index_y):
             raise NotImplemented("Birefringence is not implemented in Fresnel equations, nor in the tracer.")
-        self.frontface = frontface
-        self.backface = backface
+
+        self.get_frontfacing_normal = None
+        self.get_backfacing_normal = None
+        if(frontface is None):
+            self.frontface = lambda x,y: np.ones_like(x)
+            self.get_frontfacing_normal = lambda x,y: np.array([np.zeros_like(x),np.zeros_like(y),1])
+        else:
+            self.frontface = frontface
+        if(backface is None):
+            self.backface = lambda x,y: np.zeros_like(x)
+            self.get_backfacing_normal = lambda x,y: np.array([np.zeros_like(x),np.zeros_like(y),1])
+        else:
+            self.backface = backface
 
         if('id' in kwargs.keys()):
             self.id = kwargs['id']
@@ -64,19 +75,24 @@ class SceneObjectType:
             print(f'Creating optical component {self.id}')
 
         if('frontface_normal' in kwargs.keys()):
-            self.get_normal = kwargs['frontface_normal']
+            self.get_frontfacing_normal = kwargs['frontface_normal']
         if('backface_normal' in kwargs.keys()):
             self.get_backfacing_normal = kwargs['backface_normal']
 
         
-        fronteval = frontface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
-        backeval = backface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
+        fronteval = self.frontface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
+        backeval = self.backface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
 
         self.min_width = np.min(fronteval - backeval)
         self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)]) # width in -x,-y,x,y from position
 
     def get_normal(self, x, y, back=False):
         '''Gets one of the normals. Points in the forward (+z) direction. This is an approximation. If you know the exact relation, please provide it as a kwarg to init.'''
+        if(self.get_backfacing_normal and back):
+            return self.get_backfacing_normal(x,y)
+        if(self.get_frontfacing_normal and not(back)):
+            return self.get_frontfacing_normal(x,y)
+
         if(debug_level >= DEBUG_SOME):
             print(f'Approximating{' backfacing' if back else ''} normal for component {self.id} (local pos {x:.3f},{y:.3f})')
         normal = approximate_normal(self.backface if back else self.frontface, x, y)
