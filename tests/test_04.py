@@ -3,15 +3,17 @@ import tracer
 import ray
 import matplotlib.pyplot as plt
 import numpy as np
+from state import State
+
 
 import time
 
 rays = [ ray.Ray(np.array([x,0.,1.25]), np.array([0.0,0.,-1.])) for x in np.linspace(-0.3,0.3,21) ]
-lens = scene.SceneObject(1.5, lambda x,y: 3/4 + np.sqrt(1 - x**2/16), np.array([0,0,1]), np.pi, 1)
+lens = scene.SceneObject(3.5, lambda x,y: 3/4 + np.sqrt(1 - x**2/16), np.array([0,0,1]), np.pi, 1)
 
 s = scene.Scene([lens])
 
-state = tracer.State(s, rays)
+state = State(s, rays)
 state.show()
 plt.gca().set_aspect('equal')
 plt.show()
@@ -19,9 +21,9 @@ plt.show()
 N=50
 for j in range(N):
     st=time.time()
-    tracer.trace(state)
+    tracer.trace(state, stepsize=0.15)
     dt=time.time()-st
-    print(f'Run {j}/{N-1} took {dt:.3f}s')
+    #print(f'Run {j}/{N-1} took {dt:.3f}s')
 
 state.show()
 

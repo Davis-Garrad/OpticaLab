@@ -4,6 +4,7 @@ import ray
 import sensor
 import matplotlib.pyplot as plt
 import numpy as np
+from state import State
 
 import time
 
@@ -16,7 +17,7 @@ lens1 = LensPlanoConvex(np.array([0,0,-2]), 0, 1, 3.5, 2.0)
 s = scene.Scene([lens0,lens1])
 sens = sensor.Sensor(np.array([-0.8, 0., -1.5]), np.array([0.8, 0., -1.5]))
 
-state = tracer.State(s, rays)
+state = State(s, rays)
 ax=sens.show()
 state.show(ax)
 plt.gca().set_aspect('equal')

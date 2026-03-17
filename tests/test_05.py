@@ -3,6 +3,8 @@ import tracer
 import ray
 import matplotlib.pyplot as plt
 import numpy as np
+from state import State
+
 
 import time
 
@@ -11,7 +13,7 @@ lens = scene.SceneObject(np.inf, lambda x,y: np.ones_like(x)*0.1, np.array([0,0,
 
 s = scene.Scene([lens])
 
-state = tracer.State(s, rays)
+state = State(s, rays)
 state.show()
 plt.gca().set_aspect('equal')
 plt.show()

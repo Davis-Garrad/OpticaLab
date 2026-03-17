@@ -16,7 +16,9 @@ debug_level = int(cfgs.sargs['debug_level'])
 # definitions
 
 def approximate_normal(surface_function, x, y, dL=dl):
-    '''Finds the approximate front-facing (positive-z) surface normal of the surface given by surface function, a function taking some x and y values and spitting out a z value. Basically just very simple gradient function, so please make sure that surface_function is smooth compared to dL.'''
+    '''Finds the approximate front-facing (positive-z) surface normal of the surface given by surface function, a function taking some x and y values and spitting out a z value. Basically just very simple gradient function, so please make sure that surface_function is smooth compared to dL.
+
+    The performance of this function is NOT the bottleneck that this program experiences, so it's honestly mostly fine to rely on the approximation and avoid the explicit definition of normals.'''
     # designate some corners of the domain to approximate the normal at the centre of
     x1 = x-dL/2
     x2 = x+dL/2

@@ -1,5 +1,6 @@
 Next on the list:
 - optimise, optimise, optimise
+    - the main bottleneck _right now_ is with determining if the current ray should be intersecting. We should really be working on more jump optimisations. (Best currently would be for internal rays to be jumped to the next interface from inside the object. Not necessarily so straightforward as it sounds... Perhaps raymarching is the best we can do without significant overhead.
 - wavelength-dependent refractive index
 - birefringence?
-- move PlanoConvex into a library of optical components.
+- warn on hard edges defined in optical elements.
