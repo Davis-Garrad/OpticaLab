@@ -23,3 +23,5 @@ if(input('test_08 (Parabaloid lens, focus width)? [y/N] ') == 'y'):
     import tests.test_08
 if(input('test_09 (Microscope)? [y/N] ') == 'y'):
     import tests.test_09
+if(input('test_10 (Planoconvex, thin)? [y/N] ') == 'y'):
+    import tests.test_10

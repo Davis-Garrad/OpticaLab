@@ -85,6 +85,9 @@ class SceneObjectType:
         fronteval = self.frontface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
         backeval = self.backface(np.linspace(-1,1,object_resolution)[:,None], np.linspace(-1,1,object_resolution)[None,:])
 
+        if(np.any(fronteval[0] != backeval[0]) or np.any(fronteval[-1] != backeval[-1]) or np.any(fronteval[:,-1] != backeval[:,-1]) or np.any(fronteval[:,0] != backeval[:,0])):
+            print(f'WARN: Object {self.id} has a potentially hard edge. Please ensure that rays do not pass through the sides, or adjust the faces.')
+
         self.min_width = np.min(fronteval - backeval)
         self.boundingbox = np.array([-1, np.min(backeval), 1, np.max(fronteval)]) # width in -x,-y,x,y from position
 
