@@ -7,6 +7,7 @@ import numpy as np
 from state import State
 
 tracer.max_depth = 6 # pls increase if you got a better pc
+tracer.status_update = lambda *args, **kwargs: None
 
 
 def rms_width(xs, intensity):
