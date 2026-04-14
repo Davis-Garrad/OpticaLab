@@ -99,9 +99,20 @@ class SceneObjectType:
             return self.get_frontfacing_normal(x,y)
 
         if(debug_level >= DEBUG_SOME):
-            print(f'Approximating{' backfacing' if back else ''} normal for component {self.id} (local pos {x:.3f},{y:.3f})')
+            facing = ' backfacing' if back else ''
+            print(f'Approximating{facing} normal for component {self.id} (local pos {x:.3f},{y:.3f})')
         normal = approximate_normal(self.backface if back else self.frontface, x, y)
         return normal
+
+    def get_index(self, wavelength, axis='x'):
+        '''Gets the refractive index for some wavelength in nm.
+        
+        Can be either a scalar refractive index or a callable n(lambda_nm).
+        '''
+        n = self.index_x if axis == 'x' else self.index_y
+        if(callable(n)):
+            return n(wavelength)
+        return n
 
     def get_outline(self):
         '''Creates a polygon for display purposes (x and z coordinates)'''
