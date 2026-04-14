@@ -25,3 +25,7 @@ if(input('test_09 (Microscope)? [y/N] ') == 'y'):
     import tests.test_09
 if(input('test_10 (Planoconvex, thin)? [y/N] ') == 'y'):
     import tests.test_10
+if(input('test_11 (Chromatic aberration)? [y/N] ') == 'y'):
+    import tests.test_11_chromatic
+if(input('test_12 (Cooke triplet)? [y/N] ') == 'y'):
+    import tests.test_12_cooke_triplet
