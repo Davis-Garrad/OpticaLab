@@ -91,8 +91,8 @@ def trace(state, stepsize=1, resolution=1000):
             if not(int_r is int_rp):
                 # interface
                 # step 3
-                n_r  = int_r.index_x  if int_r  else 1. #TODO: birefringence
-                n_rp = int_rp.index_x if int_rp else 1.
+                n_r  = int_r.get_index(ray.col)  if int_r  else 1. #TODO: birefringence
+                n_rp = int_rp.get_index(ray.col) if int_rp else 1.
 
                 nratio = n_r/n_rp
 
