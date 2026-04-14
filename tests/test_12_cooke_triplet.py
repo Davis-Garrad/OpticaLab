@@ -37,8 +37,8 @@ def biconcave(index, position, scale, radius_front, radius_back, thickness):
     return scene.SceneObject(index, frontface, position, np.pi, scale, backface=backface)
 
 
-# Very simple Cooke triplet style layout:
-# positive crown, negative flint, positive crown.
+# Cooke triplet style layout:
+# + - +
 lens0 = biconvex(1.52, np.array([0,0,11.8]), 1.3, 2.5, 2.5, 0.20) # crown https://en.wikipedia.org/wiki/Crown_glass_(optics)
 lens1 = biconcave(1.62, np.array([0,0,10.6]), 0.85, 3.4, 3.4, 0.18) # flint https://en.wikipedia.org/wiki/Flint_glass
 lens2 = biconvex(1.52, np.array([0,0,9.0]), 1.2, 2.7, 2.7, 0.20) # same https://en.wikipedia.org/wiki/Crown_glass_(optics)

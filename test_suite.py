@@ -29,3 +29,5 @@ if(input('test_11 (Chromatic aberration)? [y/N] ') == 'y'):
     import tests.test_11_chromatic
 if(input('test_12 (Cooke triplet)? [y/N] ') == 'y'):
     import tests.test_12_cooke_triplet
+if(input('test_13 (Cooke chromatic)? [y/N] ') == 'y'):
+    import tests.test_13_cooke_chromatic
