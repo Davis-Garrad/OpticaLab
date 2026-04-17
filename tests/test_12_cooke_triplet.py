@@ -1,7 +1,6 @@
 import scene
 import tracer
 import ray
-import sensor
 import matplotlib.pyplot as plt
 import numpy as np
 from state import State
@@ -19,6 +18,30 @@ def rms_width(xs, intensity):
 
     avg = np.sum(xs * intensity) / np.sum(intensity)
     return np.sqrt(np.sum(intensity * np.square(xs - avg)) / np.sum(intensity))
+
+
+def plane_pattern(state, z, width=10.0):
+    xs = []
+    intensity = []
+
+    for r in state.rays + state.free_rays + state.dead_rays:
+        z0 = r.origin[-1]
+        z1 = r.pos[-1]
+        if(z0 == z1):
+            continue
+        if(not(min(z0, z1) <= z <= max(z0, z1))):
+            continue
+
+        t = (z - z0)/(z1 - z0)
+        x = r.origin[0] + t*(r.pos[0] - r.origin[0])
+        if(np.abs(x) <= width):
+            xs += [x]
+            intensity += [r.intensity]
+
+    if(len(xs) == 0):
+        return [0], [0]
+
+    return xs, intensity
 
 
 def sag(radius, x):
@@ -44,7 +67,8 @@ lens1 = biconcave(1.62, np.array([0,0,10.6]), 0.85, 3.4, 3.4, 0.18) # flint http
 lens2 = biconvex(1.52, np.array([0,0,9.0]), 1.2, 2.7, 2.7, 0.20) # same https://en.wikipedia.org/wiki/Crown_glass_(optics)
 
 s = scene.Scene([lens0, lens1, lens2])
-single_scene = scene.Scene([ biconvex(1.52, np.array([0,0,10.4]), 1.35, 2.5, 2.5, 0.20) ])
+
+single_scene = scene.Scene([ biconvex(1.52, np.array([0,0,12.63]), 1.4, 3.1, 3.1, 0.20) ])
 
 rays = [ ray.Ray(np.array([x,0.,15.5]), np.array([0.,0.,-1.]), wavelength=532) for x in np.linspace(-0.7,0.7,7) ]
 state = State(s, rays)
@@ -62,15 +86,13 @@ plt.title('Cooke triplet ray trace')
 plt.show()
 
 
-z_positions = np.linspace(7.5, 11.5, 40)
+z_positions = np.linspace(6.5, 10.5, 80)
 widths = []
 single_widths = []
 for z in z_positions:
-    sens = sensor.Sensor(np.array([-3.0, 0., z]), np.array([3.0, 0., z]))
-    xs, intensity = sens.get_intensity_pattern(state)
+    xs, intensity = plane_pattern(state, z)
     widths += [rms_width(xs, intensity) ]
-    sens = sensor.Sensor(np.array([-3.0, 0., z]), np.array([3.0, 0., z]))
-    xs, intensity = sens.get_intensity_pattern(single_state)
+    xs, intensity = plane_pattern(single_state, z)
     single_widths += [ rms_width(xs, intensity) ]
 
 widths = np.array(widths)
@@ -85,7 +107,7 @@ print(f'Single lens best focus z = {single_best_z:.3f}, RMS width = {single_widt
 plt.figure()
 plt.plot(z_positions, widths, linewidth=3, color='darkgreen')
 plt.plot(z_positions, single_widths, linewidth=3, color='darkorange')
-plt.xlabel('Sensor z-position')
+plt.xlabel('Measurement plane z-position')
 plt.ylabel('RMS spot width')
 plt.title('Cooke triplet vs single lens focus scan')
 plt.legend(['Cooke triplet', 'Single lens'])

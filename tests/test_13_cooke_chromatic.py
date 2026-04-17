@@ -1,7 +1,6 @@
 import scene
 import tracer
 import ray
-import sensor
 import colours
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +19,30 @@ def rms_width(xs, intensity):
 
     avg = np.sum(xs * intensity) / np.sum(intensity)
     return np.sqrt(np.sum(intensity * np.square(xs - avg)) / np.sum(intensity))
+
+
+def plane_pattern(state, z, width=10.0):
+    xs = []
+    intensity = []
+
+    for r in state.rays + state.free_rays + state.dead_rays:
+        z0 = r.origin[-1]
+        z1 = r.pos[-1]
+        if(z0 == z1):
+            continue
+        if(not(min(z0, z1) <= z <= max(z0, z1))):
+            continue
+
+        t = (z - z0)/(z1 - z0)
+        x = r.origin[0] + t*(r.pos[0] - r.origin[0])
+        if(np.abs(x) <= width):
+            xs += [x]
+            intensity += [r.intensity]
+
+    if(len(xs) == 0):
+        return [0], [0]
+
+    return xs, intensity
 
 
 def sag(radius, x):
@@ -60,13 +83,13 @@ states = []
 single_states = []
 
 for wavelength in wavelengths:
-    rays = [ ray.Ray(np.array([x,0.,15.5]), np.array([0.,0.,-1.]), wavelength=wavelength) for x in np.linspace(-0.45,0.45,3) ]
+    rays = [ ray.Ray(np.array([x,0.,15.5]), np.array([0.,0.,-1.]), wavelength=wavelength) for x in np.linspace(-0.45,0.45,7) ]
     state = State(s, rays)
-    single_state = State(single_scene, [ ray.Ray(np.array([x,0.,15.5]), np.array([0.,0.,-1.]), wavelength=wavelength) for x in np.linspace(-0.45,0.45,3) ])
+    single_state = State(single_scene, [ ray.Ray(np.array([x,0.,15.5]), np.array([0.,0.,-1.]), wavelength=wavelength) for x in np.linspace(-0.45,0.45,7) ])
 
-    for i in range(90):
-        tracer.trace(state, stepsize=0.15, resolution=100)
-        tracer.trace(single_state, stepsize=0.15, resolution=100)
+    for i in range(70):
+        tracer.trace(state, stepsize=0.15, resolution=90)
+        tracer.trace(single_state, stepsize=0.15, resolution=90)
 
     states += [state]
     single_states += [single_state]
@@ -86,7 +109,7 @@ plt.title('Cooke triplet chromatic ray trace')
 plt.show()
 
 
-z_positions = np.linspace(7.4, 11.2, 28)
+z_positions = np.linspace(6.8, 8.8, 80)
 triplet_best_zs = []
 single_best_zs = []
 
@@ -96,12 +119,10 @@ for wavelength,state,single_state in zip(wavelengths, states, single_states):
     single_widths = []
 
     for z in z_positions:
-        sens = sensor.Sensor(np.array([-3.0, 0., z]), np.array([3.0, 0., z]))
-        xs, intensity = sens.get_intensity_pattern(state)
+        xs, intensity = plane_pattern(state, z)
         widths += [ rms_width(xs, intensity) ]
 
-        sens = sensor.Sensor(np.array([-3.0, 0., z]), np.array([3.0, 0., z]))
-        xs, intensity = sens.get_intensity_pattern(single_state)
+        xs, intensity = plane_pattern(single_state, z)
         single_widths += [ rms_width(xs, intensity) ]
 
     widths = np.array(widths)
@@ -131,7 +152,7 @@ single_spread = np.max(single_best_zs) - np.min(single_best_zs)
 print(f'Cooke triplet chromatic focus spread = {triplet_spread:.3f}')
 print(f'Single lens chromatic focus spread = {single_spread:.3f}')
 
-plt.xlabel('Sensor z-position')
+plt.xlabel('Measurement plane z-position')
 plt.ylabel('RMS spot width')
 plt.title('Cooke triplet vs single lens chromatic focus scan')
 plt.legend()

@@ -1,12 +1,12 @@
 import scene
 import tracer
 import ray
-import sensor
 import colours
 import matplotlib.pyplot as plt
 import numpy as np
 from state import State
 
+tracer.status_update = lambda *args, **kwargs: None
 
 
 def glass_index(wavelength_nm):
@@ -33,6 +33,30 @@ def rms_width(xs, intensity):
 
     avg = np.sum(xs * intensity) / np.sum(intensity)
     return np.sqrt(np.sum(intensity * np.square(xs - avg)) / np.sum(intensity))
+
+
+def plane_pattern(state, z, width=4.0): ## The sensor helper was doing fine but it was yielding some odd results, basically same thing here but less corse.
+    xs = []
+    intensity = []
+
+    for r in state.rays + state.free_rays + state.dead_rays:
+        z0 = r.origin[-1]
+        z1 = r.pos[-1]
+        if(z0 == z1):
+            continue
+        if(not(min(z0, z1) <= z <= max(z0, z1))):
+            continue
+
+        t = (z - z0)/(z1 - z0)
+        x = r.origin[0] + t*(r.pos[0] - r.origin[0])
+        if(np.abs(x) <= width):
+            xs += [x]
+            intensity += [r.intensity]
+
+    if(len(xs) == 0):
+        return [0], [0]
+
+    return xs, intensity
 
 
 reference_wavelength = 532.0
@@ -62,7 +86,7 @@ for wavelength in wavelengths:
     for i in range(80):
         tracer.trace(state, stepsize=0.1, resolution=400)
 
-    states += [state] # state 0 is blue, state 1 is green, state 2 is red
+    states += [state]
 
 
 fig, ax = plt.subplots(1,1)
@@ -79,14 +103,13 @@ plt.title('Chromatic aberration ray trace')
 plt.show()
 
 
-z_positions = np.linspace(3.5, 6.5, 40)
+z_positions = np.linspace(3.6, 4.2, 80)
 
 plt.figure()
 for wavelength,state in zip(wavelengths, states):
     widths = []
     for z in z_positions:
-        sens = sensor.Sensor(np.array([-0.8, 0., z]), np.array([0.8, 0., z]))
-        xs, intensity = sens.get_intensity_pattern(state)
+        xs, intensity = plane_pattern(state, z)
         widths += [ rms_width(xs, intensity) ]
 
     widths = np.array(widths)
@@ -95,7 +118,7 @@ for wavelength,state in zip(wavelengths, states):
     print(f'{wavelength}nm best focus z = {best_z:.3f}, RMS width = {widths[best_i]:.5f}')
     plt.plot(z_positions, widths, color=colours.wavelength_to_rgb(wavelength), linewidth=3, label=f'{wavelength} nm')
 
-plt.xlabel('Sensor z-position')
+plt.xlabel('Measurement plane z-position')
 plt.ylabel('RMS spot width')
 plt.title('Chromatic aberration: focus depends on wavelength')
 plt.legend()
